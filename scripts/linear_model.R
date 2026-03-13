@@ -27,15 +27,11 @@ qula_lm <- read.csv("data/qula_lm.csv") # Quercus laevis
 # function to clean data for model including outlier tests
 clean_health_comp_model <- function(pcoa_coords_health) {
   # Select variables needed for model
-  lm_sp <- dplyr::select(pcoa_coords_health, StemTag, grow, bai, PC1, PC2, PC3, 
-                         idw_con, idw_het, ba_m_2019, crown_living, water, DBH_2024,
-                         fire , defoliation, leaf_damage)
-  
-  # Remove infinities
-  lm_sp <- lm_sp[!is.infinite(lm_sp$idw_con), ]
+  lm_sp <- dplyr::select(pcoa_coords_health, StemTag, bai, PC1, PC2, PC3, 
+                         idw_con, idw_het, ba_m_2019, crown_living, water)
   
   # Compute Z-scores
-  lm_sp$z_scores <- scale(lm_sp$grow)
+  lm_sp$z_scores <- scale(lm_sp$bai)
   
   # Define threshold
   lm_sp <- lm_sp[abs(lm_sp$z_scores) < 5, ]
@@ -49,7 +45,7 @@ clean_health_comp_model <- function(pcoa_coords_health) {
 
 # clean data 
 pipa_clean <- clean_health_comp_model(pipa_lm)
-qula_clean <- clean_health_comp_model(pipa_lm)
+qula_clean <- clean_health_comp_model(qula_lm)
 
 # model to run multiple linear regression
 health_comp_model <- function(pcoa_coords_health, model_ac = FALSE, ac) {
@@ -96,41 +92,6 @@ qula_cooks_model <- health_comp_model(qula_cooks)
 # view summary
 summary(pipa_cooks_model)
 summary(qula_cooks_model)
-
-
-
-##### Morans I test for spatial autocorrelation #####
-
-# function for moran's I test
-morans_i_test <- function(model, model_full, full_data){
-  # add residuals back to original data frame
-  model_resid <- as_tibble(model$residuals)
-  model_resid <- as.numeric(model_resid$value)
-  model_full$resid <- as.numeric(model_resid)
-  # get coordinates data
-  model_morans <- left_join(model_full, full_data, by = "StemTag", relationship =
-                              "many-to-many")
-  # converts to sf object
-  sf_model <- st_as_sf(model_morans, coords = c("gx", "gy"), crs = 4326)
-  # gets coordinates
-  coords_model <- st_coordinates(sf_model)
-  # creates a list of neighbors based on distance:
-  nb_model <- dnearneigh(coords_model, d1 = 0, d2 = 50)
-  # Converts the neighbor into a weights matrix, that tells how much influence each neighbor has.
-  # "W" = \weights sum to 1 across neighbors
-  lw_model <- nb2listw(nb_model, style = "W")
-  ### run morans i test
-  # for residuals of model
-  resid_morans_model <- moran.test(sf_model$resid, lw_model)
-  return(resid_morans_model)
-}  
-
-
-# runs morans i test for pines and oaks
-morans_pipa <- morans_i_test(pipa_cooks_model, pipa_cooks, trees)
-morans_pipa # no spatial autocorrelation
-morans_qula <- morans_i_test(qula_cooks_model, qula_cooks, trees)
-morans_qula # no spatial autocorrelation
 
 
 

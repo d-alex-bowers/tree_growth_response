@@ -217,3 +217,4 @@ plot_grid(
   fig1b + theme,
   ncol = 2
 )
+]
